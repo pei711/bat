@@ -330,7 +330,7 @@ fn attached_short_option_values_are_not_treated_as_flags() {
 
     bat()
         .current_dir(tmp_dir.path())
-        .args(["-lbn", "input.txt"])
+        .args(["-lRust", "input.txt"])
         .assert()
         .success()
         .stdout("hello\nworld\n");
@@ -3450,6 +3450,34 @@ fn no_first_line_fallback_when_mapping_to_invalid_syntax() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("unknown syntax: 'InvalidSyntax'"));
+}
+
+#[test]
+fn invalid_syntax_is_rejected_when_color_is_disabled() {
+    for color in ["never", "auto"] {
+        bat()
+            .args([
+                &format!("--color={color}"),
+                "--style=plain",
+                "--language=InvalidSyntax",
+            ])
+            .arg("test.txt")
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("unknown syntax: 'InvalidSyntax'"));
+
+        bat()
+            .args([
+                &format!("--color={color}"),
+                "--style=plain",
+                "--map-syntax=*.invalid-syntax:InvalidSyntax",
+                "--file-name=test.invalid-syntax",
+            ])
+            .arg("test.txt")
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("unknown syntax: 'InvalidSyntax'"));
+    }
 }
 
 #[test]

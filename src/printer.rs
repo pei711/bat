@@ -34,6 +34,7 @@ use crate::preprocessor::{
     strip_overstrike,
 };
 use crate::style::StyleComponent;
+use crate::syntax_mapping::MappingTarget;
 use crate::terminal::{as_terminal_escaped, to_ansi_color};
 use crate::vscreen::{AnsiStyle, EscapeSequence, EscapeSequenceIterator};
 use crate::wrapping::WrappingMode;
@@ -285,7 +286,17 @@ impl<'a> InteractivePrinter<'a> {
             || matches!(config.binary, BinaryBehavior::AsText))
             && (config.colored_output
                 || config.strip_ansi == StripAnsiMode::Auto
-                || config.sanitize == StripAnsiMode::Auto);
+                || config.sanitize == StripAnsiMode::Auto
+                || config.language.is_some()
+                || input.path().is_some_and(|path| {
+                    config
+                        .syntax_mapping
+                        .custom_mappings()
+                        .iter()
+                        .any(|(matcher, target)| {
+                            matcher.is_match(path) && matches!(target, MappingTarget::MapTo(_))
+                        })
+                }));
 
         let (is_plain_text, strip_overstrike, highlighter_from_set) = if needs_to_match_syntax {
             // Determine the type of syntax for highlighting

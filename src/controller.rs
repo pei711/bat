@@ -13,6 +13,7 @@ use crate::output::{OutputHandle, OutputType};
 #[cfg(feature = "paging")]
 use crate::paging::PagingMode;
 use crate::printer::{InteractivePrinter, Printer, SimplePrinter};
+use crate::syntax_mapping::MappingTarget;
 use std::collections::VecDeque;
 use std::io::{self, BufRead, Write};
 use std::mem;
@@ -161,6 +162,28 @@ impl Controller<'_> {
             input.open(stdin, stdout_identifier)?
         };
         opened_input.reader.unbuffered = self.config.unbuffered;
+
+        // SimplePrinter skips syntax detection entirely. Still validate explicit
+        // syntax selections so typos fail even when output is piped without colors.
+        if self.config.loop_through {
+            if self.config.language.is_some() {
+                self.assets.get_syntax(
+                    self.config.language,
+                    self.config.fallback_syntax,
+                    &mut opened_input,
+                    &self.config.syntax_mapping,
+                )?;
+            } else if let Some(path) = opened_input.path() {
+                if matches!(
+                    self.config.syntax_mapping.get_syntax_for(path),
+                    Some(MappingTarget::MapTo(_))
+                ) {
+                    self.assets
+                        .get_syntax_for_path(path, &self.config.syntax_mapping)?;
+                }
+            }
+        }
+
         #[cfg(feature = "git")]
         let line_changes = if self.config.visible_lines.diff_mode()
             || (!self.config.loop_through && self.config.style_components.changes())
